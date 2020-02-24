@@ -10,6 +10,8 @@
 #include <pthread.h>
 using namespace std;
 
+#define NUM_THREADS     3
+
 // initialize functions:
 void shuffle();
 void deal(int [], int);
@@ -29,12 +31,20 @@ bool gameOver = false;
 // main fxn to loop game rounds until a player gets a pair and wins
 int main()
 {
+    pthread_t threads[NUM_THREADS];
+    
     dealFirstRound();
     while(!gameOver)
     {
         rounds++;
         cout << "\n    Round " << rounds << endl;
         shuffle();
+        //pthread_create(&threads[0], NULL, &deal, 1);    // (last option) pointer to void that contains the arguments to the function defined in the earlier argument
+        //pthread_create(&threads[1], NULL, &deal, 2);
+        //pthread_create(&threads[2], NULL, &deal, 3);
+        
+        //Here we need synchronization as well as communication...most likely will be added in the deal function.
+        
         deal(player1, 1);
         deal(player2, 2);
         deal(player3, 3);
@@ -60,9 +70,15 @@ void shuffle()
 
 // removes card from queue then adds to player's hand, declares pair or removes random card
 // parameters: pointer to player array, player's number
+
+//void* deal(void* threadId)
 void deal(int p[], int pNum)
 {
     // deal new card:
+    
+    //long pNum;
+    //pNum = (long)threadid;    // This will determine which of the players is accessing this portion.
+    
     cout << "PLAYER " << pNum << ": hand " << cards[0] << endl;
     int newCard = dealer.front();   // determine next card
     dealer.pop();                   // remove from deck
