@@ -57,6 +57,11 @@ int main()
 // generates queue of "cards" of random values 0-12, to be used as index to string array
 void shuffle()
 {
+    while(!dealer.empty()) // empty existing deck
+    {
+        dealer.pop();
+    }
+
     seed = time(NULL);
     srand(seed);
     for(int i = 0; i < 52; i++)
