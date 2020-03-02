@@ -10,13 +10,14 @@
 #include <pthread.h>
 using namespace std;
 
-#define NUM_THREADS     3
+#define NUM_THREADS     4
 
 // initialize functions:
 void shuffle();
 void deal(int [], int);
 void dealFirstRound();
 void printDeck(queue <int>);
+//void *parallel_Draws(void *threadid);
 
 // initialize data structures:
 string cards[13] = {"Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Jack", "Queen","King"};
@@ -28,10 +29,15 @@ int rounds = 0;
 int seed;           // for randomized shuffling
 bool gameOver = false;
 
+//Initializing mutex and barrier
+
+//pthread_mutex_t mutexDrawl;
+//pthread_barrier_t barrier;
+
 // main fxn to loop game rounds until a player gets a pair and wins
 int main()
 {
-    pthread_t threads[NUM_THREADS];
+    //pthread_t threads[NUM_THREADS];
     
     dealFirstRound();
     while(!gameOver)
@@ -51,6 +57,29 @@ int main()
         // TODO launch deal() calls as separate threads
     }
     cout << "\nGame finished in " << rounds << " rounds." << endl;
+	return 0;
+	
+	
+	// Testing parallel portion
+	/*
+	pthread_mutex_init(&mutexDrawl, NULL);
+	
+	pthread_barrier_init(&barrier, NULL, 3);
+	
+	while(!gameOver)
+    {
+	    for(int index = 0; index < NUM_THREADS; index++){
+           cout << "In main: creating thread " << index << endl;
+           int rc = pthread_create(&threads[index], NULL, parallel_Draws, (void *)index);
+           if (rc){
+              cout << "ERROR; return code from pthread_create() is " << rc << endl;
+              return -1;
+           }
+        }
+    }
+    pthread_mutex_destroy(&mutexDrawl);
+    pthread_exit(NULL);
+    */
 	return 0;
 }
 
@@ -165,3 +194,17 @@ void printDeck(queue <int> deck)
     cout << ")" << endl;
     cout << endl;
 }
+
+/*
+void *parallel_Draws(void *threadid)
+ {
+    long tid;
+    tid = (long)threadid;
+    //pthread_mutex_lock(&mutexDrawl);
+    pthread_barrier_wait (&barrier);
+    printf("Hello World! It's me, thread #%ld!\n", tid);
+    //pthread_mutex_unlock(&mutexDrawl);
+    gameOver = true;
+    pthread_exit(NULL);
+ }
+*/
