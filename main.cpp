@@ -19,7 +19,9 @@ void deal(int [], int);
 void dealFirstRound();
 void printDeck(queue <int>);
 void *parallel_Draws(void *threadid);
+void p_deal_first(long);
 void p_deal(long);
+void p_check_win(long, int []);
 
 // initialize data structures:
 string cards[13] = {"Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Jack", "Queen","King"};
@@ -65,7 +67,7 @@ int main()
     //************ NT solution ************
     pthread_t threads[NUM_THREADS];
     pthread_mutex_init(&mutexDrawl, NULL);
-    pthread_barrier_init(&barrier, NULL, 3);
+    pthread_barrier_init(&barrier, NULL, 4);
     while(!gameOver)
     {
         //cout << "Debug: creating " <<  NUM_THREADS << " threads..." << endl;
@@ -79,7 +81,7 @@ int main()
             }
             pthread_join(threads[index], NULL);
         }
-
+		
         //pthread_join(threads[0], NULL);
         //pthread_join(threads[1], NULL);
         //pthread_join(threads[2], NULL);
@@ -96,7 +98,7 @@ int main()
     return 0;
     //*************************************
 }
-	
+
 // Testing parallel portion
 /*
 pthread_mutex_init(&mutexDrawl, NULL);
@@ -146,10 +148,10 @@ void shuffle()
 void deal(int p[], int pNum)
 {
     // deal new card:
-    
+	
     //long pNum;
     //pNum = (long)threadid;    // This will determine which of the players is accessing this portion.
-    
+	
     cout << "PLAYER " << pNum << ": hand " << cards[0] << endl;
     int newCard = dealer.front();   // determine next card
     dealer.pop();                   // remove from deck
@@ -232,21 +234,130 @@ void printDeck(queue <int> deck)
     cout << endl;
 }
 
-
+// Executes the program in parallel by calling threads to perform functions.
 void *parallel_Draws(void *threadid)
- {
+{
     long tid;
     tid = (long)threadid;
-    pthread_mutex_lock(&mutexDrawl);
+    //pthread_mutex_lock(&mutexDrawl);
     //pthread_barrier_wait (&barrier);
     //cout << "    Hello World! It's me, thread # " << tid << endl;
+    p_deal_first(tid);
+    //pthread_mutex_unlock(&mutexDrawl);
+    //pthread_barrier_wait (&barrier);
+    //pthread_mutex_lock(&mutexDrawl);
     p_deal(tid);
-    pthread_mutex_unlock(&mutexDrawl);
+    //pthread_mutex_unlock(&mutexDrawl);
     gameOver = true;
     pthread_exit(NULL);
  }
 
+// Deals the first round to the threads.
+void p_deal_first(long tid)
+{
+   if (tid == 0)
+   {
+       shuffle();
+   }
+   if (tid == 1)
+   {
+       int newCard = dealer.front();   // determine next card
+       dealer.pop();                   // remove from deck
+       cout << "PLAYER 1: draws " << cards[newCard] << endl;
+       player1[0] = newCard;           // give player 1st card
+       //printDeck(dealer);              // display current deck
+   }
+   else if (tid == 2)
+   {
+       int newCard = dealer.front();   // determine next card
+       dealer.pop();                   // remove from deck
+       cout << "PLAYER 2: draws " << cards[newCard] << endl;
+       player2[0] = newCard;           // give player 2nd card
+       //printDeck(dealer);              // display current deck
+   }
+   else if (tid == 3)
+   {
+       int newCard = dealer.front();   // determine next card
+       dealer.pop();                   // remove from deck
+       cout << "PLAYER 3: draws " << cards[newCard] << endl;
+       player3[0] = newCard;           // give player 3rd card
+       //printDeck(dealer);              // display current deck
+   }
+	
+   //cout << "Thread in deal: " << tid << endl;
+}
+
+// Deals threads in order 1 - 3 and calls function to check for win.
 void p_deal(long tid)
 {
-   cout << "Thread in deal: " << tid << endl;
+   if (tid == 0)
+   {
+       shuffle();
+   }
+   if (tid == 1)
+   {
+       cout << "PLAYER " << tid << ": hand " << cards[player1[0]] << endl;
+       int newCard = dealer.front();   // determine next card
+       dealer.pop();                   // remove from deck
+       cout << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
+       player1[1] = newCard;                 // give player new card
+       cout << "PLAYER " << tid << ": hand " << cards[player1[0]] << ", " << cards[player1[1]] << endl;
+       p_check_win(tid, player1);
+   }
+   else if (tid == 2)
+   {
+       cout << "PLAYER " << tid << ": hand " << cards[player2[0]] << endl;
+       int newCard = dealer.front();   // determine next card
+       dealer.pop();                   // remove from deck
+       cout << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
+       player2[1] = newCard;                 // give player new card
+       cout << "PLAYER " << tid << ": hand " << cards[player2[0]] << ", " << cards[player2[1]] << endl;
+       p_check_win(tid, player2);
+   }
+   else if (tid == 3)
+   {
+       cout << "PLAYER " << tid << ": hand " << cards[player3[0]] << endl;
+       int newCard = dealer.front();   // determine next card
+       dealer.pop();                   // remove from deck
+       cout << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
+       player3[1] = newCard;                 // give player new card
+       cout << "PLAYER " << tid << ": hand " << cards[player3[0]] << ", " << cards[player3[1]] << endl;
+       p_check_win(tid, player3);
+   }
 
+    //printDeck(dealer); // display current deck
+
+}
+
+
+// Function called to if there is a match in cards (win)
+void p_check_win(long tid, int player[])
+{
+    if(player[0] == player[1])
+    {
+        cout << "PLAYER " << tid << ": wins" << endl;
+        cout << "PLAYER " << tid << ": exits round" << endl;
+        gameOver = true;
+        // TODO signal others threads to exit
+    }
+    else // return random card
+    {
+        int RNG = rand() % 2; // 0 or 1
+        switch(RNG)
+        {
+            case 0:  // return 1st card
+                cout << "PLAYER " << tid << ": discards " << cards[ player[0] ] << endl;
+                dealer.push( player[0] );
+                player[0] = player[1];
+                break;
+
+            case 1: // return 2nd card
+                cout << "PLAYER " << tid << ": discards " << cards[ player[1] ] << endl;
+                dealer.push( player[1] );
+                break;
+
+            default:
+                break;
+        }
+    }
+}
