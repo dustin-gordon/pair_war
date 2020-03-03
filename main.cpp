@@ -17,7 +17,7 @@ void shuffle();
 void deal(int [], int);
 void dealFirstRound();
 void printDeck(queue <int>);
-//void *parallel_Draws(void *threadid);
+void *parallel_Draws(void *threadid);
 
 // initialize data structures:
 string cards[13] = {"Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Jack", "Queen","King"};
@@ -30,58 +30,94 @@ int seed;           // for randomized shuffling
 bool gameOver = false;
 
 //Initializing mutex and barrier
-
-//pthread_mutex_t mutexDrawl;
-//pthread_barrier_t barrier;
+pthread_mutex_t mutexDrawl;
+pthread_barrier_t barrier;
 
 // main fxn to loop game rounds until a player gets a pair and wins
 int main()
 {
-    //pthread_t threads[NUM_THREADS];
-    
-    dealFirstRound();
-    while(!gameOver)
-    {
+    //************ 1T solution ************
+    /*
+    dealFirstRound(); //TODO: find pthread alternative
+    while (!gameOver) {
         rounds++;
         cout << "\n    Round " << rounds << endl;
         shuffle();
-        //pthread_create(&threads[0], NULL, &deal, 1);    // (last option) pointer to void that contains the arguments to the function defined in the earlier argument
-        //pthread_create(&threads[1], NULL, &deal, 2);
+        //pthread_create(&threads[0], NULL, &deal, 1);  // (last option) pointer to void that contains the arguments
+        //pthread_create(&threads[1], NULL, &deal, 2);  // to the function defined in the earlier argument
         //pthread_create(&threads[2], NULL, &deal, 3);
-        
+
         //Here we need synchronization as well as communication...most likely will be added in the deal function.
-        
+
         deal(player1, 1);
         deal(player2, 2);
         deal(player3, 3);
         // TODO launch deal() calls as separate threads
     }
     cout << "\nGame finished in " << rounds << " rounds." << endl;
-	return 0;
-	
-	
-	// Testing parallel portion
-	/*
-	pthread_mutex_init(&mutexDrawl, NULL);
-	
-	pthread_barrier_init(&barrier, NULL, 3);
-	
-	while(!gameOver)
+    return 0;
+    */
+    //*************************************
+
+
+    //************ NT solution ************
+    pthread_t threads[NUM_THREADS];
+    pthread_mutex_init(&mutexDrawl, NULL);
+    pthread_barrier_init(&barrier, NULL, 3);
+    while(!gameOver)
     {
-	    for(int index = 0; index < NUM_THREADS; index++){
-           cout << "In main: creating thread " << index << endl;
-           int rc = pthread_create(&threads[index], NULL, parallel_Draws, (void *)index);
-           if (rc){
-              cout << "ERROR; return code from pthread_create() is " << rc << endl;
-              return -1;
-           }
+        //cout << "Debug: creating " <<  NUM_THREADS << " threads..." << endl;
+        for(int index = 0; index < NUM_THREADS; index++){
+            cout << "In main: creating thread " << index << endl;
+            int rc = pthread_create(&threads[index], NULL, parallel_Draws, (void*)((long)index));
+            if (rc)
+            {
+                cout << "ERROR; return code from pthread_create() is " << rc << endl;
+                return -1;
+            }
+            pthread_join(threads[index], NULL);
         }
+
+        //pthread_join(threads[0], NULL);
+        //pthread_join(threads[1], NULL);
+        //pthread_join(threads[2], NULL);
+        //pthread_join(threads[3], NULL);
+
+        //pthread_barrier_wait (&barrier);
+
+        cout << "Debug: setting gameOver = true (to be set on win)" << endl;
+        gameOver = true; //debug
     }
+    cout << "\nGame finished in " << rounds << " rounds." << endl;
     pthread_mutex_destroy(&mutexDrawl);
     pthread_exit(NULL);
-    */
-	return 0;
+    return 0;
+    //*************************************
 }
+	
+// Testing parallel portion
+/*
+pthread_mutex_init(&mutexDrawl, NULL);
+
+pthread_barrier_init(&barrier, NULL, 3);
+
+while(!gameOver)
+{
+    for(int index = 0; index < NUM_THREADS; index++){
+       cout << "In main: creating thread " << index << endl;
+       int rc = pthread_create(&threads[index], NULL, parallel_Draws, (void *)index);
+       if (rc){
+          cout << "ERROR; return code from pthread_create() is " << rc << endl;
+          return -1;
+       }
+    }
+}
+pthread_mutex_destroy(&mutexDrawl);
+pthread_exit(NULL);
+
+return 0;
+}
+*/
 
 // generates queue of "cards" of random values 0-12, to be used as index to string array
 void shuffle()
@@ -97,7 +133,6 @@ void shuffle()
     {
         int random = rand() % 13;   // random index for cards string array
         dealer.push(random);        // add card to deck
-        //cout << "debug: adding "<< cards[random] <<" to the deck..." << endl;
     }
     cout << "DECK: cards shuffled" << endl;
 }
@@ -195,16 +230,16 @@ void printDeck(queue <int> deck)
     cout << endl;
 }
 
-/*
+
 void *parallel_Draws(void *threadid)
  {
     long tid;
     tid = (long)threadid;
-    //pthread_mutex_lock(&mutexDrawl);
-    pthread_barrier_wait (&barrier);
-    printf("Hello World! It's me, thread #%ld!\n", tid);
-    //pthread_mutex_unlock(&mutexDrawl);
+    pthread_mutex_lock(&mutexDrawl);
+    //pthread_barrier_wait (&barrier);
+    printf("    Hello World! It's me, thread #%ld!\n", tid);
+    pthread_mutex_unlock(&mutexDrawl);
     gameOver = true;
     pthread_exit(NULL);
  }
-*/
+
