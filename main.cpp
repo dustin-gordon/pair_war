@@ -8,6 +8,7 @@
 #include <queue>
 #include <ctime>
 #include <pthread.h>
+#include <cstdlib>
 using namespace std;
 
 #define NUM_THREADS     4
@@ -18,6 +19,7 @@ void deal(int [], int);
 void dealFirstRound();
 void printDeck(queue <int>);
 void *parallel_Draws(void *threadid);
+void p_deal(long);
 
 // initialize data structures:
 string cards[13] = {"Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Jack", "Queen","King"};
@@ -237,9 +239,14 @@ void *parallel_Draws(void *threadid)
     tid = (long)threadid;
     pthread_mutex_lock(&mutexDrawl);
     //pthread_barrier_wait (&barrier);
-    printf("    Hello World! It's me, thread #%ld!\n", tid);
+    //cout << "    Hello World! It's me, thread # " << tid << endl;
+    p_deal(tid);
     pthread_mutex_unlock(&mutexDrawl);
     gameOver = true;
     pthread_exit(NULL);
  }
+
+void p_deal(long tid)
+{
+   cout << "Thread in deal: " << tid << endl;
 
