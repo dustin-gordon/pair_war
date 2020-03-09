@@ -31,6 +31,7 @@ int player3[2];
 queue <int> dealer; // dealer holds deck
 int rounds = 0;
 int seed;           // for randomized shuffling
+int whoseTurn = 1;
 bool gameOver = false;
 
 //Initializing mutex and barrier
@@ -68,11 +69,24 @@ int main()
     pthread_t threads[NUM_THREADS];
     pthread_mutex_init(&mutexDrawl, NULL);
     pthread_barrier_init(&barrier, NULL, 4);
+
+
+
     while(!gameOver)
     {
-        //cout << "Debug: creating " <<  NUM_THREADS << " threads..." << endl;
-        for(int index = 0; index < NUM_THREADS; index++){
-            cout << "In main: creating thread " << index << endl;
+        cout << "Starting Round " << (rounds + 1) << endl;
+        // run dealer thread
+        cout << "In main: creating dealer thread 0" << endl;
+        int rc = pthread_create(&threads[0], NULL, parallel_Draws, (void*)((long)0));
+        if (rc)
+        {
+            cout << "ERROR; return code from pthread_create() is " << rc << endl;
+            return -1;
+        }
+        // run player threads in proper order
+        for(int index = whoseTurn; index < NUM_THREADS; index++)
+        {
+            cout << "In main: creating player thread " << index << endl;
             int rc = pthread_create(&threads[index], NULL, parallel_Draws, (void*)((long)index));
             if (rc)
             {
@@ -80,17 +94,15 @@ int main()
                 return -1;
             }
             pthread_join(threads[index], NULL);
+            if(gameOver)
+                break;
         }
-		
-        //pthread_join(threads[0], NULL);
-        //pthread_join(threads[1], NULL);
-        //pthread_join(threads[2], NULL);
-        //pthread_join(threads[3], NULL);
-
-        //pthread_barrier_wait (&barrier);
-
-        cout << "Debug: setting gameOver = true (to be set on win)" << endl;
-        gameOver = true; //debug
+        rounds++;
+        whoseTurn++;
+        if(whoseTurn > 3)
+        {
+            whoseTurn = 1;
+        }
     }
     cout << "\nGame finished in " << rounds << " rounds." << endl;
     pthread_mutex_destroy(&mutexDrawl);
@@ -152,12 +164,12 @@ void deal(int p[], int pNum)
     //long pNum;
     //pNum = (long)threadid;    // This will determine which of the players is accessing this portion.
 	
-    cout << "PLAYER " << pNum << ": hand " << cards[0] << endl;
+    cout << "PLAYER " << pNum << ": hand = " << cards[0] << endl;
     int newCard = dealer.front();   // determine next card
     dealer.pop();                   // remove from deck
     cout << "PLAYER " << pNum << ": draws " << cards[newCard] << endl;
     p[1] = newCard;                 // give player new card
-    cout << "PLAYER " << pNum << ": hand " << cards[p[0]] << ", " << cards[p[1]] << endl;
+    cout << "PLAYER " << pNum << ": hand = " << cards[p[0]] << ", " << cards[p[1]] << endl;
 
     // check if win:
     if(p[0] == p[1])
@@ -242,13 +254,16 @@ void *parallel_Draws(void *threadid)
     //pthread_mutex_lock(&mutexDrawl);
     //pthread_barrier_wait (&barrier);
     //cout << "    Hello World! It's me, thread # " << tid << endl;
-    p_deal_first(tid);
+    if(rounds == 0)
+    {
+        p_deal_first(tid);
+    }
     //pthread_mutex_unlock(&mutexDrawl);
     //pthread_barrier_wait (&barrier);
     //pthread_mutex_lock(&mutexDrawl);
     p_deal(tid);
     //pthread_mutex_unlock(&mutexDrawl);
-    gameOver = true;
+    //gameOver = true;
     pthread_exit(NULL);
  }
 
@@ -263,7 +278,7 @@ void p_deal_first(long tid)
    {
        int newCard = dealer.front();   // determine next card
        dealer.pop();                   // remove from deck
-       cout << "PLAYER 1: draws " << cards[newCard] << endl;
+       cout << "PLAYER 1: draws 1st card: " << cards[newCard] << endl;
        player1[0] = newCard;           // give player 1st card
        //printDeck(dealer);              // display current deck
    }
@@ -271,7 +286,7 @@ void p_deal_first(long tid)
    {
        int newCard = dealer.front();   // determine next card
        dealer.pop();                   // remove from deck
-       cout << "PLAYER 2: draws " << cards[newCard] << endl;
+       cout << "PLAYER 2: draws 1st card: " << cards[newCard] << endl;
        player2[0] = newCard;           // give player 2nd card
        //printDeck(dealer);              // display current deck
    }
@@ -279,7 +294,7 @@ void p_deal_first(long tid)
    {
        int newCard = dealer.front();   // determine next card
        dealer.pop();                   // remove from deck
-       cout << "PLAYER 3: draws " << cards[newCard] << endl;
+       cout << "PLAYER 3: draws 1st card: " << cards[newCard] << endl;
        player3[0] = newCard;           // give player 3rd card
        //printDeck(dealer);              // display current deck
    }
@@ -293,57 +308,60 @@ void p_deal(long tid)
    if (tid == 0)
    {
        shuffle();
+       printDeck(dealer);
    }
    if (tid == 1)
    {
-       cout << "PLAYER " << tid << ": hand " << cards[player1[0]] << endl;
+       cout << "PLAYER " << tid << ": hand = " << cards[player1[0]] << endl;
        int newCard = dealer.front();   // determine next card
        dealer.pop();                   // remove from deck
        cout << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
        player1[1] = newCard;                 // give player new card
-       cout << "PLAYER " << tid << ": hand " << cards[player1[0]] << ", " << cards[player1[1]] << endl;
+       cout << "PLAYER " << tid << ": hand = " << cards[player1[0]] << ", " << cards[player1[1]] << endl;
        p_check_win(tid, player1);
    }
    else if (tid == 2)
    {
-       cout << "PLAYER " << tid << ": hand " << cards[player2[0]] << endl;
+       cout << "PLAYER " << tid << ": hand = " << cards[player2[0]] << endl;
        int newCard = dealer.front();   // determine next card
        dealer.pop();                   // remove from deck
        cout << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
        player2[1] = newCard;                 // give player new card
-       cout << "PLAYER " << tid << ": hand " << cards[player2[0]] << ", " << cards[player2[1]] << endl;
+       cout << "PLAYER " << tid << ": hand = " << cards[player2[0]] << ", " << cards[player2[1]] << endl;
        p_check_win(tid, player2);
    }
    else if (tid == 3)
    {
-       cout << "PLAYER " << tid << ": hand " << cards[player3[0]] << endl;
+       cout << "PLAYER " << tid << ": hand = " << cards[player3[0]] << endl;
        int newCard = dealer.front();   // determine next card
        dealer.pop();                   // remove from deck
        cout << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
        player3[1] = newCard;                 // give player new card
-       cout << "PLAYER " << tid << ": hand " << cards[player3[0]] << ", " << cards[player3[1]] << endl;
+       cout << "PLAYER " << tid << ": hand = " << cards[player3[0]] << ", " << cards[player3[1]] << endl;
        p_check_win(tid, player3);
    }
-
     //printDeck(dealer); // display current deck
-
 }
 
 
 // Function called to if there is a match in cards (win)
 void p_check_win(long tid, int player[])
 {
-    if(player[0] == player[1])
+    if(player[0] == player[1]) // if cards match
     {
-        cout << "PLAYER " << tid << ": wins" << endl;
-        cout << "PLAYER " << tid << ": exits round" << endl;
-        gameOver = true;
-        // TODO signal others threads to exit
+        if(!gameOver) // ensure no other threads won
+        {
+            cout << "PLAYER " << tid << ": wins!!!" << endl;
+            cout << "PLAYER " << tid << ": exits round" << endl;
+            gameOver = true;
+            // TODO signal others threads to exit
+        }
     }
     else // return random card
     {
+        cout << "PLAYER " << tid << ": does not win..." << endl;
         int RNG = rand() % 2; // 0 or 1
-        switch(RNG)
+        switch(RNG) // return random card
         {
             case 0:  // return 1st card
                 cout << "PLAYER " << tid << ": discards " << cards[ player[0] ] << endl;
@@ -359,5 +377,6 @@ void p_check_win(long tid, int player[])
             default:
                 break;
         }
+        cout << "PLAYER " << tid << ": exits round" << endl;
     }
 }
