@@ -33,54 +33,34 @@ int rounds = 1;
 int seed;           // for randomized shuffling
 int whoseTurn = 1;
 bool gameOver = false;
+int turn = 0;
 
 //Initializing mutex and barrier
-pthread_mutex_t mutexDrawl;
-pthread_barrier_t barrier;
+pthread_mutex_t pLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t condition = PTHREAD_COND_INITIALIZER;
+pthread_cond_t winCond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t dealerLock = PTHREAD_MUTEX_INITIALIZER;
 
 // main fxn to loop game rounds until a player gets a pair and wins
 int main()
 {
-    //************ 1T solution ************
-    /*
-    dealFirstRound(); //TODO: find pthread alternative
-    while (!gameOver) {
-        rounds++;
-        cout << "\n    Round " << rounds << endl;
-        shuffle();
-        //pthread_create(&threads[0], NULL, &deal, 1);  // (last option) pointer to void that contains the arguments
-        //pthread_create(&threads[1], NULL, &deal, 2);  // to the function defined in the earlier argument
-        //pthread_create(&threads[2], NULL, &deal, 3);
-
-        //Here we need synchronization as well as communication...most likely will be added in the deal function.
-
-        deal(player1, 1);
-        deal(player2, 2);
-        deal(player3, 3);
-        // TODO launch deal() calls as separate threads
-    }
-    cout << "\nGame finished in " << rounds << " rounds." << endl;
-    return 0;
-    */
-    //*************************************
-
 
     //************ NT solution ************
     pthread_t threads[NUM_THREADS];
-    pthread_mutex_init(&mutexDrawl, NULL);
-    pthread_barrier_init(&barrier, NULL, 4);
-
+   // pthread_mutex_init(&mutexDrawl, NULL);
+    //pthread_barrier_init(&barrier, NULL, 4);
 
 
     while(!gameOver)
     {
         cout << "Starting Round " << rounds << endl;
+        
         // run dealer thread
         cout << "In main: creating dealer thread 0" << endl;
         pthread_create(&threads[0], NULL, parallel_Draws, (void*)((long)0));
 
         // run player threads in proper order
-        for(int index = whoseTurn; index < NUM_THREADS - 1; index++)
+        for(int index = whoseTurn; index < NUM_THREADS; index++)
         {
             cout << "In main: creating player thread " << index << endl;
             pthread_create(&threads[index], NULL, parallel_Draws, (void*)((long)index));
@@ -88,12 +68,12 @@ int main()
             if(gameOver)
                 break;
         }
-        
-        for(int index = whoseTurn; index < NUM_THREADS - 1; index++)
+        cout << "back in main" << endl;
+        for(int index = whoseTurn; index < NUM_THREADS; index++)
         {
             pthread_join(threads[index], NULL);
         }
-        
+        //pthread_barrier_wait(&barrier);
         rounds++;
         whoseTurn++;
         if(whoseTurn > 3)
@@ -102,8 +82,7 @@ int main()
         }
     }
     cout << "\nGame finished in " << rounds << " rounds." << endl;
-    pthread_mutex_destroy(&mutexDrawl);
-    pthread_exit(NULL);
+
     return 0;
     //*************************************
 }
@@ -145,14 +124,25 @@ void *parallel_Draws(void *threadid)
 {
     long tid;
     tid = (long)threadid;
+    //cout << "DEALER FUNCTION\n";
     if(rounds == 0)
     {
         p_deal_first(tid);
     }
 
-    p_deal(tid);
+    pthread_cond_broadcast(&condition);
 
+    while(!gameOver)
+    { 
+        pthread_cond_wait(&winCond, &dealerLock); // wait for a win
+    }
+    pthread_mutex_unlock(&dealerLock); //unlock when winner determined
+
+    // exit when round is over
+    cout << "DEALER: exits round \n";
+    
     return NULL;
+
  }
 
 // Deals the first round to the threads.
@@ -193,11 +183,7 @@ void p_deal_first(long tid)
 // Deals threads in order 1 - 3 and calls function to check for win.
 void p_deal(long tid)
 {
-   if (tid == 0)
-   {
-       shuffle();
-       printDeck(dealer);
-   }
+   cout << "Inside deal!" << endl;
    if (tid == 1)
    {
        cout << "PLAYER " << tid << ": hand = " << cards[player1[0]] << endl;
@@ -228,7 +214,27 @@ void p_deal(long tid)
        cout << "PLAYER " << tid << ": hand = " << cards[player3[0]] << ", " << cards[player3[1]] << endl;
        p_check_win(tid, player3);
    }
-    //printDeck(dealer); // display current deck
+   
+    while(!gameOver)
+    { 
+    
+        pthread_mutex_lock(&pLock); // lock
+        
+        while(!gameOver && !(tid == turn || turn == 0))
+        { 
+        
+            pthread_cond_wait(&condition, &pLock); 
+            
+        }
+        if(!gameOver){ // player takes their turn
+            takeTurn(player, &hand);
+        }
+        pthread_mutex_unlock(&pLock); // unlock after turn complete
+    }
+
+    
+    cout << "PLAYER " << tid << ": exits round \n";
+    pthread_exit(NULL);
 }
 
 
