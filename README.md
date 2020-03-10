@@ -11,10 +11,13 @@
 
 # To compile and run:
 
-Please copy "main.cpp" to a Linux environment, and enter the following commands:
+Please copy "main.cpp" to a Linux environment, and enter the following command to compile:
 
-g++ -pthread main.cpp -o pw
-./pw
+	g++ -pthread main.cpp -o pw; ./pw
+
+To run, enter the following command:
+
+	./pw
 
 # Result 1:
 
