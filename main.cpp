@@ -80,7 +80,7 @@ int main()
         pthread_create(&threads[0], NULL, parallel_Draws, (void*)((long)0));
 
         // run player threads in proper order
-        for(int index = whoseTurn; index < NUM_THREADS; index++)
+        for(int index = whoseTurn; index < NUM_THREADS - 1; index++)
         {
             cout << "In main: creating player thread " << index << endl;
             pthread_create(&threads[index], NULL, parallel_Draws, (void*)((long)index));
@@ -89,7 +89,7 @@ int main()
                 break;
         }
         
-        for(int index = whoseTurn; index < NUM_THREADS; index++)
+        for(int index = whoseTurn; index < NUM_THREADS - 1; index++)
         {
             pthread_join(threads[index], NULL);
         }
@@ -107,30 +107,6 @@ int main()
     return 0;
     //*************************************
 }
-
-// Testing parallel portion
-/*
-pthread_mutex_init(&mutexDrawl, NULL);
-
-pthread_barrier_init(&barrier, NULL, 3);
-
-while(!gameOver)
-{
-    for(int index = 0; index < NUM_THREADS; index++){
-       cout << "In main: creating thread " << index << endl;
-       int rc = pthread_create(&threads[index], NULL, parallel_Draws, (void *)index);
-       if (rc){
-          cout << "ERROR; return code from pthread_create() is " << rc << endl;
-          return -1;
-       }
-    }
-}
-pthread_mutex_destroy(&mutexDrawl);
-pthread_exit(NULL);
-
-return 0;
-}
-*/
 
 // generates queue of "cards" of random values 0-12, to be used as index to string array
 void shuffle()
@@ -150,86 +126,7 @@ void shuffle()
     cout << "DECK: cards shuffled" << endl;
 }
 
-// removes card from queue then adds to player's hand, declares pair or removes random card
-// parameters: pointer to player array, player's number
-/*
-void deal(int p[], int pNum)
-{
-    // deal new card:
-	
-    //long pNum;
-    //pNum = (long)threadid;    // This will determine which of the players is accessing this portion.
-	
-    cout << "PLAYER " << pNum << ": hand = " << cards[0] << endl;
-    int newCard = dealer.front();   // determine next card
-    dealer.pop();                   // remove from deck
-    cout << "PLAYER " << pNum << ": draws " << cards[newCard] << endl;
-    p[1] = newCard;                 // give player new card
-    cout << "PLAYER " << pNum << ": hand = " << cards[p[0]] << ", " << cards[p[1]] << endl;
 
-    // check if win:
-    if(p[0] == p[1])
-    {
-        cout << "PLAYER " << pNum << ": wins" << endl;
-        cout << "PLAYER " << pNum << ": exits round" << endl;
-        gameOver = true;
-        // TODO signal others threads to exit
-    }
-    else // return random card
-    {
-        int RNG = rand() % 2; // 0 or 1
-        switch(RNG)
-        {
-            case 0:  // return 1st card
-                cout << "PLAYER " << pNum << ": discards " << cards[ p[0] ] << endl;
-                dealer.push( p[0] );
-                p[0] = p[1];
-                break;
-
-            case 1: // return 2nd card
-                cout << "PLAYER " << pNum << ": discards " << cards[ p[1] ] << endl;
-                dealer.push( p[1] );
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    printDeck(dealer); // display current deck
-    
-}
-
-// For 1st round, dealer assigns card to 1st element in player array,
-// subsequent rounds dealer assigns to 2nd element via deal()
-void dealFirstRound()
-{
-    rounds++;
-    cout << "\n    Round " << rounds << endl;
-    shuffle();
-
-    // deal player1's first card:
-    int newCard = dealer.front();   // determine next card
-    dealer.pop();                   // remove from deck
-    cout << "PLAYER 1: draws " << cards[newCard] << endl;
-    player1[0] = newCard;           // give player 1st card
-    printDeck(dealer);              // display current deck
-
-    // deal player2's first card:
-    newCard = dealer.front();   // determine next card
-    dealer.pop();               // remove from deck
-    cout << "PLAYER 2: draws " << cards[newCard] << endl;
-    player2[0] = newCard;       // give player 1st card
-    printDeck(dealer);
-
-    // deal player3's first card:
-    newCard = dealer.front();   // determine next card
-    dealer.pop();               // remove from deck
-    cout << "PLAYER 3: draws " << cards[newCard] << endl;
-    player3[0] = newCard;       // give player 1st card
-    printDeck(dealer);          // display current deck
-}
-*/
 // iterates current contents of deck and prints output to console
 void printDeck(queue <int> deck)
 {
@@ -371,3 +268,85 @@ void p_check_win(long tid, int player[])
         cout << "PLAYER " << tid << ": exits round" << endl;
     }
 }
+
+
+// removes card from queue then adds to player's hand, declares pair or removes random card
+// parameters: pointer to player array, player's number
+/*
+void deal(int p[], int pNum)
+{
+    // deal new card:
+	
+    //long pNum;
+    //pNum = (long)threadid;    // This will determine which of the players is accessing this portion.
+	
+    cout << "PLAYER " << pNum << ": hand = " << cards[0] << endl;
+    int newCard = dealer.front();   // determine next card
+    dealer.pop();                   // remove from deck
+    cout << "PLAYER " << pNum << ": draws " << cards[newCard] << endl;
+    p[1] = newCard;                 // give player new card
+    cout << "PLAYER " << pNum << ": hand = " << cards[p[0]] << ", " << cards[p[1]] << endl;
+
+    // check if win:
+    if(p[0] == p[1])
+    {
+        cout << "PLAYER " << pNum << ": wins" << endl;
+        cout << "PLAYER " << pNum << ": exits round" << endl;
+        gameOver = true;
+        // TODO signal others threads to exit
+    }
+    else // return random card
+    {
+        int RNG = rand() % 2; // 0 or 1
+        switch(RNG)
+        {
+            case 0:  // return 1st card
+                cout << "PLAYER " << pNum << ": discards " << cards[ p[0] ] << endl;
+                dealer.push( p[0] );
+                p[0] = p[1];
+                break;
+
+            case 1: // return 2nd card
+                cout << "PLAYER " << pNum << ": discards " << cards[ p[1] ] << endl;
+                dealer.push( p[1] );
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    printDeck(dealer); // display current deck
+    
+}
+
+// For 1st round, dealer assigns card to 1st element in player array,
+// subsequent rounds dealer assigns to 2nd element via deal()
+void dealFirstRound()
+{
+    rounds++;
+    cout << "\n    Round " << rounds << endl;
+    shuffle();
+
+    // deal player1's first card:
+    int newCard = dealer.front();   // determine next card
+    dealer.pop();                   // remove from deck
+    cout << "PLAYER 1: draws " << cards[newCard] << endl;
+    player1[0] = newCard;           // give player 1st card
+    printDeck(dealer);              // display current deck
+
+    // deal player2's first card:
+    newCard = dealer.front();   // determine next card
+    dealer.pop();               // remove from deck
+    cout << "PLAYER 2: draws " << cards[newCard] << endl;
+    player2[0] = newCard;       // give player 1st card
+    printDeck(dealer);
+
+    // deal player3's first card:
+    newCard = dealer.front();   // determine next card
+    dealer.pop();               // remove from deck
+    cout << "PLAYER 3: draws " << cards[newCard] << endl;
+    player3[0] = newCard;       // give player 1st card
+    printDeck(dealer);          // display current deck
+}
+*/
