@@ -13,7 +13,7 @@
 
 Please copy "main.cpp" to a Linux environment, and enter the following command to compile:
 
-	g++ -pthread main.cpp -o pw; ./pw
+	g++ -pthread main.cpp -o pw
 
 To run, enter the following command:
 
