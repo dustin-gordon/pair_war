@@ -29,7 +29,7 @@ int player1[2];     // each player holds 2 cards (saved as int to index string a
 int player2[2];
 int player3[2];
 queue <int> dealer; // dealer holds deck
-int rounds = 0;
+int rounds = 1;
 int seed;           // for randomized shuffling
 int whoseTurn = 1;
 bool gameOver = false;
@@ -74,29 +74,26 @@ int main()
 
     while(!gameOver)
     {
-        cout << "Starting Round " << (rounds + 1) << endl;
+        cout << "Starting Round " << rounds << endl;
         // run dealer thread
         cout << "In main: creating dealer thread 0" << endl;
-        int rc = pthread_create(&threads[0], NULL, parallel_Draws, (void*)((long)0));
-        if (rc)
-        {
-            cout << "ERROR; return code from pthread_create() is " << rc << endl;
-            return -1;
-        }
+        pthread_create(&threads[0], NULL, parallel_Draws, (void*)((long)0));
+
         // run player threads in proper order
         for(int index = whoseTurn; index < NUM_THREADS; index++)
         {
             cout << "In main: creating player thread " << index << endl;
-            int rc = pthread_create(&threads[index], NULL, parallel_Draws, (void*)((long)index));
-            if (rc)
-            {
-                cout << "ERROR; return code from pthread_create() is " << rc << endl;
-                return -1;
-            }
-            pthread_join(threads[index], NULL);
+            pthread_create(&threads[index], NULL, parallel_Draws, (void*)((long)index));
+            
             if(gameOver)
                 break;
         }
+        
+        for(int index = whoseTurn; index < NUM_THREADS; index++)
+        {
+            pthread_join(threads[index], NULL);
+        }
+        
         rounds++;
         whoseTurn++;
         if(whoseTurn > 3)
@@ -155,8 +152,7 @@ void shuffle()
 
 // removes card from queue then adds to player's hand, declares pair or removes random card
 // parameters: pointer to player array, player's number
-
-//void* deal(void* threadId)
+/*
 void deal(int p[], int pNum)
 {
     // deal new card:
@@ -201,6 +197,7 @@ void deal(int p[], int pNum)
     }
 
     printDeck(dealer); // display current deck
+    
 }
 
 // For 1st round, dealer assigns card to 1st element in player array,
@@ -232,7 +229,7 @@ void dealFirstRound()
     player3[0] = newCard;       // give player 1st card
     printDeck(dealer);          // display current deck
 }
-
+*/
 // iterates current contents of deck and prints output to console
 void printDeck(queue <int> deck)
 {
@@ -251,20 +248,14 @@ void *parallel_Draws(void *threadid)
 {
     long tid;
     tid = (long)threadid;
-    //pthread_mutex_lock(&mutexDrawl);
-    //pthread_barrier_wait (&barrier);
-    //cout << "    Hello World! It's me, thread # " << tid << endl;
     if(rounds == 0)
     {
         p_deal_first(tid);
     }
-    //pthread_mutex_unlock(&mutexDrawl);
-    //pthread_barrier_wait (&barrier);
-    //pthread_mutex_lock(&mutexDrawl);
+
     p_deal(tid);
-    //pthread_mutex_unlock(&mutexDrawl);
-    //gameOver = true;
-    pthread_exit(NULL);
+
+    return NULL;
  }
 
 // Deals the first round to the threads.
