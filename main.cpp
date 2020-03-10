@@ -9,6 +9,7 @@
 #include <ctime>
 #include <pthread.h>
 #include <cstdlib>
+#include <fstream>
 using namespace std;
 
 #define NUM_THREADS     4
@@ -32,52 +33,56 @@ int player3[2];
 queue <int> dealer; // dealer holds deck
 int rounds = 1;
 int seed;           // for randomized shuffling
-int whoseTurn = 1;
+//int whoseTurn = 1;
 bool gameOver = false;
+bool roundOver = false;
 int turn = 1;
+pthread_t threads[NUM_THREADS];
 
 //Initializing mutex and barrier
 pthread_mutex_t pLock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t condition = PTHREAD_COND_INITIALIZER;
-pthread_cond_t winCond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t dealerLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t turnCond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t winCond = PTHREAD_COND_INITIALIZER;
+
 
 // main fxn to loop game rounds until a player gets a pair and wins
 int main()
 {
 
     //************ NT solution ************
-    pthread_t threads[NUM_THREADS];
-   // pthread_mutex_init(&mutexDrawl, NULL);
-    //pthread_barrier_init(&barrier, NULL, 4);
 
     while(rounds < 4)
     {
         while(!gameOver)
         {
             cout << "Starting Round " << rounds << endl;
-        
+            roundOver = false;
             // run dealer thread
-            //cout << "In main: creating dealer thread 0" << endl;
+            cout << "* creating dealer thread 0" << endl;
             pthread_create(&threads[0], NULL, parallel_Draws, (void*)((long)0));
 
             // run player threads in proper order
-            for(int index = whoseTurn; index < NUM_THREADS; index++)
+            for(int index = 1; index < NUM_THREADS; index++)
             {
               //  cout << "In main: creating player thread " << index << endl;
+                cout << "* creating thread " << index << endl;
                 pthread_create(&threads[index], NULL, parallel_Draws, (void*)((long)index));
-                //cout << gameOver << " first test\n";
-            
+
+                turn++;
                 if(gameOver)
                     break;
+
             }
             //cout << "back in main" << endl;
-            for(int index = whoseTurn; index < NUM_THREADS; index++)
+            for(int index = 1; index < NUM_THREADS; index++)
             {
-                 
+                 cout << "* joining thread " << index << endl;
                  pthread_join(threads[index], NULL);
                  
             }
+
+            roundOver = true;
 
             rounds++;
             turn++;
@@ -110,6 +115,7 @@ void shuffle()
         dealer.push(random);        // add card to deck
     }
     cout << "DECK: cards shuffled" << endl;
+    printDeck(dealer);
     
 }
 
@@ -132,27 +138,41 @@ void *parallel_Draws(void *threadid)
 {
     long tid;
     tid = (long)threadid;
+    cout << "* Running parallel_Draws() for thread " << tid << endl;
     //cout << "DEALER FUNCTION " << tid << endl;
-    if(tid == 0)
+    if(tid == 0) // if dealer thread 0
     {
-        p_deal_first(tid);
-
+        cout << "* enabling dealerLock in thread " << tid << endl;
+        pthread_mutex_lock(&dealerLock);
+        /*
         while(!gameOver)
-        { 
-            //cout << "stuck waiting dealer " << tid << endl;
+        {
+            cout << "stuck waiting dealer " << tid << endl;
             pthread_cond_wait(&winCond, &dealerLock); // wait for a win
         }
-       
-    pthread_mutex_unlock(&dealerLock); //unlock when winner determined
-    pthread_cond_broadcast(&condition);
-    }
-    // exit when round is over
-    //cout << "DEALER: exits round \n";
-
-    
-    if (tid != 0)
+         */
+        if(rounds == 1)
+        {
+            cout << "* dealing to player " << tid << endl;
+            p_deal_first(tid);
+        }
+        cout << "* dealing to player " << tid << endl;
         p_deal(tid);
-    
+
+        cout << "* broadcasting condition in thread " << tid << endl;
+        pthread_cond_broadcast(&turnCond);
+        cout << "* disabling dealerLock in thread " << tid << endl;
+        pthread_mutex_unlock(&dealerLock); //unlock when winner determined
+    }
+    else
+    {
+        cout << "Waiting for dealer thread to finish.." << endl;
+        //pthread_cond_wait(&turnCond, &dealerLock);
+        pthread_join(threads[0], NULL);
+        cout << "* dealing to player " << tid << endl;
+        p_deal(tid);
+    }
+
     return NULL;
 
  }
@@ -167,87 +187,119 @@ void p_deal_first(long tid)
    
        int newCard = dealer.front();   // determine next card
        dealer.pop();                   // remove from deck
-       //cout << "PLAYER 1: draws 1st card: " << cards[newCard] << endl;
+       cout << "PLAYER 1: draws 1st card: " << cards[newCard] << endl;
        player1[0] = newCard;           // give player 1st card
-       //printDeck(dealer);              // display current deck
    
-       newCard = dealer.front();   // determine next card
+       newCard = dealer.front();       // determine next card
        dealer.pop();                   // remove from deck
-       //cout << "PLAYER 2: draws 1st card: " << cards[newCard] << endl;
+       cout << "PLAYER 2: draws 1st card: " << cards[newCard] << endl;
        player2[0] = newCard;           // give player 2nd card
-       //printDeck(dealer);              // display current deck
 
-       newCard = dealer.front();   // determine next card
+       newCard = dealer.front();       // determine next card
        dealer.pop();                   // remove from deck
-       //cout << "PLAYER 3: draws 1st card: " << cards[newCard] << endl;
+       cout << "PLAYER 3: draws 1st card: " << cards[newCard] << endl;
        player3[0] = newCard;           // give player 3rd card
-       //printDeck(dealer);              // display current deck
    }
-	
-   //cout << "Thread in deal: " << tid << endl;
+
 }
 
 // Deals threads in order 1 - 3 and calls function to check for win.
 void p_deal(long tid)
 {
-   int hand[2];
-   //cout << "Inside deal!\n" << endl;
-   if (tid == 1)
+   if(gameOver)
    {
-       hand[0] = player1[0];
-       //hand[1] = dealer.front();   // determine next card
-       dealer.pop();                   // remove from deck
-       printDeck(dealer);
-       //p_check_win(tid, player1);
+       cout << "PLAYER " << tid << ": exits round \n";
+       pthread_exit(NULL);
    }
-   else if (tid == 2)
-   {
-       hand[0] = player2[0];
-       //hand[1] = dealer.front();   // determine next card
-       dealer.pop();                   // remove from deck
-       
-   }
-   else if (tid == 3)
-   {
-       hand[0] = player3[0];
-       //hand[1] = dealer.front();   // determine next card
-       dealer.pop();                   // remove from deck
-       
-   }
-   
-    while(!gameOver)
-    { 
-    
-        pthread_mutex_lock(&pLock); // lock
-        
-        while(!gameOver && !(tid == turn || turn == 0))
-        { 
-            
-            pthread_cond_wait(&condition, &pLock); 
-            
-        }
-        if(!gameOver)
-        { 
-            take_Turn(tid, hand);
-        }
-        pthread_mutex_unlock(&pLock); // unlock after turn complete
-    }
 
-    
-    cout << "PLAYER " << tid << ": exits round \n";
+   int newCard;
+   switch(tid) // shuffle or draw card
+   {
+       case 0:
+           shuffle();
+           break;
+       case 1:
+           cout << "Player " << tid << "'s turn" << endl;
+           cout << "PLAYER " << tid << ": hand = " << cards[player1[0]] << endl;
+           newCard = dealer.front();   // determine next card
+           dealer.pop();               // remove from deck
+           cout << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
+           player1[1] = newCard;       // give player new card
+           cout << "PLAYER " << tid << ": hand = " << cards[player1[0]] << ", " << cards[player1[1]] << endl;
+           break;
+       case 2:
+           cout << "Player " << tid << "'s turn" << endl;
+           cout << "PLAYER " << tid << ": hand = " << cards[player2[0]] << endl;
+           newCard = dealer.front();   // determine next card
+           dealer.pop();               // remove from deck
+           cout << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
+           player2[1] = newCard;       // give player new card
+           cout << "PLAYER " << tid << ": hand = " << cards[player2[0]] << ", " << cards[player2[1]] << endl;
+           break;
+       case 3:
+           cout << "Player " << tid << "'s turn" << endl;
+           cout << "PLAYER " << tid << ": hand = " << cards[player3[0]] << endl;
+           newCard = dealer.front();   // determine next card
+           dealer.pop();               // remove from deck
+           cout << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
+           player3[1] = newCard;       // give player new card
+           cout << "PLAYER " << tid << ": hand = " << cards[player3[0]] << ", " << cards[player3[1]] << endl;
+           break;
+       default: break;
+   }
+
+   if(tid != 0)
+   {
+       cout << "* enabling pLock in thread " << tid << endl;
+       pthread_mutex_lock(&pLock); // lock
+
+       switch (tid) {
+           case 1:
+               take_Turn(tid, player1);
+               break;
+           case 2:
+               take_Turn(tid, player2);
+               break;
+           case 3:
+               take_Turn(tid, player3);
+               break;
+           default:
+               break;
+       }
+
+       /*
+       while (!gameOver && !(tid == turn || turn == 0)) {
+           cout << "* thread " << tid << " waiting on condition and pLock" << endl;
+           pthread_cond_wait(&turnCond, &pLock);
+
+       }
+        */
+       cout << "* thread " << tid << " waiting on condition and pLock" << endl;
+       pthread_cond_wait(&turnCond, &pLock);
+
+       cout << "* broadcasting turnCond in thread " << tid << endl;
+       pthread_cond_broadcast(&turnCond);
+       cout << "* disabling pLock in thread " << tid << endl;
+       pthread_mutex_unlock(&pLock); // unlock after turn complete
+
+
+       cout << "PLAYER " << tid << ": exits round \n";
+   }
     
 }
 
-// Determines turn order
+// Determines turn order, sets winCond
 void take_Turn(long tid,int hand[])
 {
 
+    /*
     cout << "PLAYER " << tid << ": hand = " << cards[hand[0]] << endl;
     int newCard = dealer.front();   // determine next card
     dealer.pop();                   // remove from deck
     cout << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
     hand[1] = newCard;                 // give player new card
     cout << "PLAYER " << tid << ": hand = " << cards[hand[0]] << ", " << cards[hand[1]] << endl;
+    */
 
     // check if match
     if (hand[0] == hand[1]) 
@@ -255,9 +307,8 @@ void take_Turn(long tid,int hand[])
         cout << "PLAYER " << tid << ": wins!!!" << endl;
         gameOver = true;
         pthread_cond_signal(&winCond);
-
     } 
-    else 
+    else
     { //no match
         cout << "PLAYER " << tid << ": does not win..." << endl;
         int RNG = rand() % 2; // 0 or 1
@@ -274,18 +325,16 @@ void take_Turn(long tid,int hand[])
                 dealer.push( hand[1] );
                 break;
 
-            //default:
-            //    break;
+            default: break;
         }
-        //cout << "PLAYER " << tid << ": exits round" << endl;
+
     }
-    printDeck(dealer);
-    // signal next players turn
     turn++;
     if (turn > NUM_THREADS)
     {
       turn = 1; 
     }
-    pthread_cond_broadcast(&condition);
+    pthread_mutex_unlock(&pLock);
+    pthread_cond_broadcast(&turnCond);
     
 }
