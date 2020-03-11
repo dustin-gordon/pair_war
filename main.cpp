@@ -49,8 +49,7 @@ int main()
 
     //************ NT solution ************
     pthread_t threads[NUM_THREADS];
-   // pthread_mutex_init(&mutexDrawl, NULL);
-    //pthread_barrier_init(&barrier, NULL, 4);
+
 
     while(rounds < 4)
     {
@@ -59,36 +58,40 @@ int main()
             cout << "Starting Round " << rounds << endl;
         
             // run dealer thread
-            //cout << "In main: creating dealer thread 0" << endl;
             pthread_create(&threads[0], NULL, parallel_Draws, (void*)((long)0));
 
             // run player threads in proper order
-            for(int index = turn; index < NUM_THREADS; index++)
-            {
-              //  cout << "In main: creating player thread " << index << endl;
-                pthread_create(&threads[index], NULL, parallel_Draws, (void*)((long)index));
-                //cout << gameOver << " first test\n";
             
-                if(gameOver)
-                    break;
-            }
-            //cout << "back in main" << endl;
-            for(int index = turn; index < NUM_THREADS; index++)
+            if (rounds == 1)
             {
-                 
+                pthread_create(&threads[1], NULL, parallel_Draws, (void*)((long)1));      
+                pthread_create(&threads[2], NULL, parallel_Draws, (void*)((long)2));        
+                pthread_create(&threads[3], NULL, parallel_Draws, (void*)((long)3));        
+            }
+            else if (rounds == 2)
+            {         
+                pthread_create(&threads[2], NULL, parallel_Draws, (void*)((long)2));        
+                pthread_create(&threads[3], NULL, parallel_Draws, (void*)((long)3));
+                pthread_create(&threads[1], NULL, parallel_Draws, (void*)((long)1));
+            }
+            else if (rounds == 3)
+            {   
+                pthread_create(&threads[3], NULL, parallel_Draws, (void*)((long)3));
+                pthread_create(&threads[1], NULL, parallel_Draws, (void*)((long)1));
+                pthread_create(&threads[2], NULL, parallel_Draws, (void*)((long)2)); 
+             }
+
+            for(int index = turn; index < NUM_THREADS; index++)
                  pthread_join(threads[index], NULL);
-                 
-            }
+
             
-            rounds++;
             turn++;
             if(turn > 3)
-            {
                 turn = 1;
-            }
             
         }
         gameOver = false;
+        rounds++;
         if (rounds == 2)
             turn = 2;
         if (rounds == 3)
@@ -166,17 +169,42 @@ void p_deal_first(long tid)
 {
    if (tid == 0)
    {
-   
        shuffle();
+       if (rounds == 1)
+       {
+           player1[0] = dealer.front();   // determine next card
+           dealer.pop();                   // remove from deck
    
-       player1[0] = dealer.front();   // determine next card
-       dealer.pop();                   // remove from deck
-   
-       player2[0] = dealer.front();   // determine next card
-       dealer.pop();                   // remove from deck
+           player2[0] = dealer.front();   // determine next card
+           dealer.pop();                   // remove from deck
 
-       player3[0] = dealer.front();   // determine next card
-       dealer.pop();                   // remove from deck
+           player3[0] = dealer.front();   // determine next card
+           dealer.pop();                   // remove from deck
+        }
+       else if (rounds == 2)
+       {   
+           player2[0] = dealer.front();   // determine next card
+           dealer.pop();                   // remove from deck
+
+           player3[0] = dealer.front();   // determine next card
+           dealer.pop();                   // remove from deck
+           
+           player1[0] = dealer.front();   // determine next card
+           dealer.pop();                   // remove from deck
+
+        }
+        else if (rounds == 3)
+       {   
+           player3[0] = dealer.front();   // determine next card
+           dealer.pop();                   // remove from deck
+           
+           player1[0] = dealer.front();   // determine next card
+           dealer.pop();                   // remove from deck
+           
+           player2[0] = dealer.front();   // determine next card
+           dealer.pop();                   // remove from deck
+        }
+        
    }
 	
    //cout << "Thread in deal: " << tid << endl;
@@ -186,49 +214,30 @@ void p_deal_first(long tid)
 void p_deal(long tid)
 {
    int hand[2];
-   //cout << "Inside deal!\n" << endl;
+
    if (tid == 1)
-   {
        hand[0] = player1[0];
-       //hand[1] = dealer.front();   // determine next card
-       //dealer.pop();                   // remove from deck
-       printDeck(dealer);
-       //p_check_win(tid, player1);
-   }
+
    else if (tid == 2)
-   {
        hand[0] = player2[0];
-       //hand[1] = dealer.front();   // determine next card
-       //dealer.pop();                   // remove from deck
-       
-   }
+
    else if (tid == 3)
-   {
        hand[0] = player3[0];
-       //hand[1] = dealer.front();   // determine next card
-       //dealer.pop();                   // remove from deck
-       
-   }
+
    
     while(!gameOver)
     { 
-    
         pthread_mutex_lock(&pLock); // lock
         
-        while(!gameOver && !(tid == turn || turn == 0))
-        { 
-            
+        while(!gameOver && !(tid == turn || turn == 0)) 
             pthread_cond_wait(&condition, &pLock); 
-            
-        }
+
         if(!gameOver)
-        { 
             take_Turn(tid, hand);
-        }
+        
         pthread_mutex_unlock(&pLock); // unlock after turn complete
     }
 
-    
     cout << "PLAYER " << tid << ": exits round \n";
     
 }
@@ -269,18 +278,20 @@ void take_Turn(long tid,int hand[])
                 dealer.push( hand[1] );
                 break;
 
-            //default:
-            //    break;
+            default:
+                break;
         }
-        //cout << "PLAYER " << tid << ": exits round" << endl;
+        cout << "PLAYER " << tid << ": exits round" << endl;
     }
     printDeck(dealer);
+    
+    
+    
     // signal next players turn
     turn++;
+
     if (turn > 3)
-    {
       turn = 1; 
-    }
-    pthread_cond_broadcast(&condition);
     
+    pthread_cond_broadcast(&condition);
 }
