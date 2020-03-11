@@ -35,6 +35,7 @@ int rounds = 1;
 int seed;           // for randomized shuffling
 bool gameOver = false;
 int turn = 1;
+ofstream logs;
 
 //Initializing mutex and barrier
 pthread_mutex_t pLock = PTHREAD_MUTEX_INITIALIZER;
@@ -42,12 +43,10 @@ pthread_cond_t condition = PTHREAD_COND_INITIALIZER;
 pthread_cond_t winCond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t dealerLock = PTHREAD_MUTEX_INITIALIZER;
 
-
-
 // main fxn to loop game rounds until a player gets a pair and wins
 int main()
 {
-    ofstream logs;
+
     logs.open("log.txt", ios::out);
     if ( logs.fail() )
     {
@@ -109,6 +108,7 @@ int main()
             turn = 3;
     }
     cout << "\nGame finished in " << rounds - 1 << " rounds." << endl;
+    logs << "\nGame finished in " << rounds - 1 << " rounds." << endl;
     logs.close();
     return 0;
     //*************************************
@@ -128,7 +128,7 @@ void shuffle()
         dealer.push(random);        // add card to deck
     }
     cout << "DECK: cards shuffled" << endl;
-    
+    logs << "DECK: cards shuffled" << endl;
 }
 
 
@@ -136,13 +136,15 @@ void shuffle()
 void printDeck(queue <int> deck)
 {
     cout << "DECK: (";
+    logs << "DECK: (";
     while(!deck.empty())
     {
         cout << cards[ deck.front() ] << " ";
+        logs << cards[ deck.front() ] << " ";
         deck.pop();
     }
-    cout << ")" << endl;
-    cout << endl;
+    cout << ")" << endl << endl;
+    logs << ")" << endl << endl;
 }
 
 // Executes the program in parallel by calling threads to perform functions.
@@ -240,23 +242,27 @@ void p_deal(long tid)
         
         pthread_mutex_unlock(&pLock); // unlock after turn complete
     }
-    //cout << "PLAYER " << tid << ": exits round \n";
+
 }
 
 // Determines turn order
 void take_Turn(long tid,int hand[])
 {
     cout << "PLAYER " << tid << ": hand = " << cards[hand[0]] << endl;
+    logs << "PLAYER " << tid << ": hand = " << cards[hand[0]] << endl;
     int newCard = dealer.front();   // determine next card
     dealer.pop();                   // remove from deck
     cout << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
+    logs << "PLAYER " << tid << ": draws " << cards[newCard] << endl;
     hand[1] = newCard;                 // give player new card
     cout << "PLAYER " << tid << ": hand = " << cards[hand[0]] << ", " << cards[hand[1]] << endl;
+    logs << "PLAYER " << tid << ": hand = " << cards[hand[0]] << ", " << cards[hand[1]] << endl;
 
     // check if match
     if (hand[0] == hand[1]) 
     {
         cout << "PLAYER " << tid << ": wins!!!" << endl;
+        logs << "PLAYER " << tid << ": wins!!!" << endl;
         gameOver = true;
         pthread_cond_signal(&winCond);
 
@@ -264,17 +270,20 @@ void take_Turn(long tid,int hand[])
     else 
     { //no match
         cout << "PLAYER " << tid << ": does not win..." << endl;
+        logs << "PLAYER " << tid << ": does not win..." << endl;
         int RNG = rand() % 2; // 0 or 1
         switch(RNG) // return random card
         {
             case 0:  // return 1st card
                 cout << "PLAYER " << tid << ": discards " << cards[hand[0]] << endl;
+                logs << "PLAYER " << tid << ": discards " << cards[hand[0]] << endl;
                 dealer.push( hand[0] );
                 hand[0] = hand[1];
                 break;
 
             case 1: // return 2nd card
                 cout << "PLAYER " << tid << ": discards " << cards[hand[1]] << endl;
+                logs << "PLAYER " << tid << ": discards " << cards[hand[1]] << endl;
                 dealer.push( hand[1] );
                 break;
 
@@ -282,6 +291,7 @@ void take_Turn(long tid,int hand[])
                 break;
         }
         cout << "PLAYER " << tid << ": exits round" << endl;
+        logs << "PLAYER " << tid << ": exits round" << endl;
     }
     printDeck(dealer);
 
