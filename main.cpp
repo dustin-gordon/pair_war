@@ -9,6 +9,7 @@
 #include <ctime>
 #include <pthread.h>
 #include <cstdlib>
+#include <fstream>
 using namespace std;
 
 #define NUM_THREADS     4
@@ -41,11 +42,21 @@ pthread_cond_t condition = PTHREAD_COND_INITIALIZER;
 pthread_cond_t winCond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t dealerLock = PTHREAD_MUTEX_INITIALIZER;
 
+
+
 // main fxn to loop game rounds until a player gets a pair and wins
 int main()
 {
+    ofstream logs;
+    logs.open("log.txt", ios::out);
+    if ( logs.fail() )
+    {
+        cout << "Log file could not be opened!" << endl;
+    }
+
     cout << "Enter a seed value: ";
     cin >> seed;
+    logs << "Enter a seed value: " << seed << endl;
 
     //************ NT solution ************
     pthread_t threads[NUM_THREADS];
@@ -55,8 +66,8 @@ int main()
     {
         while(!gameOver)
         {
-            cout << "Starting Round " << rounds << endl;
-        
+            cout << "\n==== Starting Round " << rounds << " ====" << endl;
+            logs << "\n==== Starting Round " << rounds << " ====" << endl;
             // run dealer thread
             pthread_create(&threads[0], NULL, parallel_Draws, (void*)((long)0));
 
@@ -98,7 +109,7 @@ int main()
             turn = 3;
     }
     cout << "\nGame finished in " << rounds - 1 << " rounds." << endl;
-    
+    logs.close();
     return 0;
     //*************************************
 }
@@ -143,9 +154,6 @@ void *parallel_Draws(void *threadid)
     if(tid == 0)
     {
         p_deal_first(tid);
-        
-        
-        
         pthread_mutex_lock(&dealerLock);
         
         while(!gameOver)
@@ -161,7 +169,6 @@ void *parallel_Draws(void *threadid)
         p_deal(tid);
     
     return NULL;
-
  }
 
 // Deals the first round to the threads.
@@ -204,10 +211,7 @@ void p_deal_first(long tid)
            player2[0] = dealer.front();   // determine next card
            dealer.pop();                   // remove from deck
         }
-        
    }
-	
-   //cout << "Thread in deal: " << tid << endl;
 }
 
 // Deals threads in order 1 - 3 and calls function to check for win.
@@ -224,7 +228,6 @@ void p_deal(long tid)
    else if (tid == 3)
        hand[0] = player3[0];
 
-   
     while(!gameOver)
     { 
         pthread_mutex_lock(&pLock); // lock
@@ -237,15 +240,12 @@ void p_deal(long tid)
         
         pthread_mutex_unlock(&pLock); // unlock after turn complete
     }
-
-    cout << "PLAYER " << tid << ": exits round \n";
-    
+    //cout << "PLAYER " << tid << ": exits round \n";
 }
 
 // Determines turn order
 void take_Turn(long tid,int hand[])
 {
-
     cout << "PLAYER " << tid << ": hand = " << cards[hand[0]] << endl;
     int newCard = dealer.front();   // determine next card
     dealer.pop();                   // remove from deck
@@ -284,9 +284,7 @@ void take_Turn(long tid,int hand[])
         cout << "PLAYER " << tid << ": exits round" << endl;
     }
     printDeck(dealer);
-    
-    
-    
+
     // signal next players turn
     turn++;
 
